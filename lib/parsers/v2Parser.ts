@@ -33,18 +33,25 @@ export class V2Parser implements Parser {
 
   getGroupDependenciesExcludingDev(): string[] {
     if (!this.manifest.tool?.poetry.group) {
+      console.log('[DEBUG-POETRY] V2Parser: No poetry groups found in manifest');
       return [];
     }
 
     const nonDevGroupDeps: string[] = [];
     
+    console.log('[DEBUG-POETRY] V2Parser: Found poetry groups:', Object.keys(this.manifest.tool.poetry.group));
+    
     Object.entries(this.manifest.tool.poetry.group).forEach(([groupName, groupData]) => {
       if (groupName.toLowerCase() !== 'dev') {
         const groupDeps = Object.keys(groupData.dependencies || {});
+        console.log(`[DEBUG-POETRY] V2Parser: Group '${groupName}' has dependencies:`, groupDeps);
         nonDevGroupDeps.push(...groupDeps);
+      } else {
+        console.log(`[DEBUG-POETRY] V2Parser: Skipping 'dev' group dependencies`);
       }
     });
     
+    console.log('[DEBUG-POETRY] V2Parser: Total non-dev group dependencies:', nonDevGroupDeps);
     return nonDevGroupDeps;
   }
 
@@ -61,9 +68,15 @@ export class V2Parser implements Parser {
   }
 
   getDependencies(): Dependency[] {
+    console.log('[DEBUG-POETRY] V2Parser: Starting getDependencies()');
     const standardDeps = this.dependenciesFrom();
+    console.log('[DEBUG-POETRY] V2Parser: Standard dependencies:', standardDeps);
+    
     const nonDevGroupDeps = this.getGroupDependenciesExcludingDev();
+    console.log('[DEBUG-POETRY] V2Parser: Non-dev group dependencies:', nonDevGroupDeps);
+    
     const allRegularDeps = [...standardDeps, ...nonDevGroupDeps];
+    console.log('[DEBUG-POETRY] V2Parser: All regular dependencies:', allRegularDeps);
     
     const dependencies: Dependency[] = allRegularDeps.map((dep) => ({
       name: dep,
@@ -76,9 +89,14 @@ export class V2Parser implements Parser {
       name: devDep,
       isDev: true,
     }));
+    
+    console.log('[DEBUG-POETRY] V2Parser: Dev dependencies:', this.includeDevDependencies ? this.getAllDevDependencyNames() : []);
 
-    return [...dependencies, ...devDependencies].filter(
+    const finalDeps = [...dependencies, ...devDependencies].filter(
       (pkg) => pkg.name != 'python',
     );
+    
+    console.log('[DEBUG-POETRY] V2Parser: Final dependencies:', finalDeps.map(d => d.name));
+    return finalDeps;
   }
 }
