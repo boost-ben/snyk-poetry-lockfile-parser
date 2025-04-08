@@ -23,33 +23,46 @@ export class V1Parser implements Parser {
     return Object.keys(this.manifest.tool.poetry.dependencies || []);
   }
 
-  getGroupDevDepNames(obj: Group): string[] {
-    return Object.values(obj)
-      .map((group) => group.dependencies)
-      .map((depsObj) => Object.keys(depsObj))
-      .reduce((acc, curr) => [...acc, ...curr], []);
+  getGroupDependenciesExcludingDev(): string[] {
+    if (!this.manifest.tool?.poetry.group) {
+      return [];
+    }
+
+    const nonDevGroupDeps: string[] = [];
+    
+    Object.entries(this.manifest.tool.poetry.group).forEach(([groupName, groupData]) => {
+      if (groupName.toLowerCase() !== 'dev') {
+        const groupDeps = Object.keys(groupData.dependencies || {});
+        nonDevGroupDeps.push(...groupDeps);
+      }
+    });
+    
+    return nonDevGroupDeps;
   }
 
   getAllDevDependencyNames(): string[] {
-    // pre-v1.2.0 naming convention
-    const devDepsProperty = Object.keys(
-      this.manifest.tool.poetry['dev-dependencies'] ?? [],
+    const classicDevDeps = Object.keys(
+      this.manifest.tool.poetry['dev-dependencies'] ?? []
     );
-    // post-v1.2.0 dependency groups
-    // https://python-poetry.org/docs/master/managing-dependencies
-    // we will handle all tool.poetry.group.<group> as dev-deps
-    const groupDevDepsProperty = this.manifest.tool?.poetry.group
-      ? this.getGroupDevDepNames(this.manifest.tool?.poetry.group)
-      : [];
-
-    return [...devDepsProperty, ...groupDevDepsProperty];
+    
+    let devGroupDeps: string[] = [];
+    if (this.manifest.tool?.poetry.group?.dev?.dependencies) {
+      devGroupDeps = Object.keys(this.manifest.tool.poetry.group.dev.dependencies);
+    }
+    
+    return [...classicDevDeps, ...devGroupDeps];
   }
 
   getDependencies(): Dependency[] {
-    const dependencies: Dependency[] = this.dependenciesFrom().map((dep) => ({
+    const standardDeps = this.dependenciesFrom();
+    const nonDevGroupDeps = this.getGroupDependenciesExcludingDev();
+    const allRegularDeps = [...standardDeps, ...nonDevGroupDeps];
+    
+    const dependencies: Dependency[] = allRegularDeps.map((dep) => ({
       name: dep,
       isDev: false,
     }));
+    
     const devDependencies: Dependency[] = (
       this.includeDevDependencies ? this.getAllDevDependencyNames() : []
     ).map((devDep) => ({
