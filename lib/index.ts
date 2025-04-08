@@ -5,6 +5,9 @@ import { PoetryLockFileDependency } from './lock-file-parser';
 import * as poetryDepGraphBuilder from './poetry-dep-graph-builder';
 import { Dependency } from './parsers/types';
 
+// Add a version identifier to help with debugging
+export const version = 'custom-boost-ben-fork-1.0';
+
 export function buildDepGraph(
   manifestFileContents: string,
   lockFileContents: string,
